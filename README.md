@@ -4,6 +4,17 @@
 
 이 저장소는 단일 모델의 점수만 보여주기보다, **오류를 발견하고 가설을 세운 뒤 다음 실험으로 이어간 과정**을 단계별 notebook과 보고서로 정리합니다.
 
+## Final result
+
+최종 선택 모델은 **Subject + Body TF-IDF + LinearSVC**입니다.
+
+| Evaluation | Accuracy | Macro F1 | `talk.religion.misc` Precision | Recall | F1 |
+|---|---:|---:|---:|---:|---:|
+| Stage 6 OOF | 0.9031 | 0.8999 | 0.8487 | 0.7247 | 0.7818 |
+| **Official test** | **0.9066** | **0.9046** | **0.9359** | **0.7766** | **0.8488** |
+
+Official test는 모델과 설정을 고정한 뒤 2,827개 holdout 문서에 한 번만 수행했습니다. OOF보다 Macro F1이 소폭 높게 유지되어 일반화 성능이 안정적으로 확인됐습니다.
+
 ## Problem
 
 - Task: 20-class text classification
@@ -24,7 +35,7 @@
 | 3 | encoded noise와 truncation이 성능을 막는가? | noise cleaning, `MAX_LEN` 300/512 비교 | 전처리 가설 검증 |
 | 4 | sparse lexical signal이 neural model을 보완하는가? | TF-IDF, coarse head, ensemble, 5-fold OOF | TF-IDF Macro F1 0.7424 |
 | 5 | 혼동 class specialist가 global model보다 나은가? | nested CV, global LinearSVC, specialist | global OOF 0.7518, test 0.7659 |
-| 6 | Subject metadata와 semantic/hierarchical model이 병목을 해결하는가? | Subject+Body LinearSVC, ModernBERT, hierarchical multi-prototype, fusion | Subject+Body LinearSVC OOF Macro F1 0.8999 |
+| 6 | Subject metadata와 semantic/hierarchical model이 병목을 해결하는가? | Subject+Body LinearSVC, ModernBERT, hierarchical multi-prototype, fusion | OOF 0.8999, official test 0.9046 |
 
 ## Repository structure
 
@@ -35,6 +46,7 @@ notebooks/
   04_oof_tfidf_ensemble.ipynb
   05_nested_cv_linearsvc.ipynb
   06_subject_modernbert_hierarchy.ipynb
+  07_stage6_official_test_once.ipynb
 reports/
   experiment_summary.md
   stage5_test_analysis.md
@@ -53,12 +65,12 @@ requirements.txt
 2. 20 Newsgroups에서는 word/character n-gram 기반 sparse feature가 강했습니다.
 3. Stage 4에서 TF-IDF가 neural baseline과 ensemble을 앞섰습니다.
 4. Stage 5에서는 confusion-group specialist가 global LinearSVC보다 안정적인 이득을 주지 못했습니다.
-5. Stage 5 official test에서 global LinearSVC는 Macro F1 0.7659를 기록했고 OOF보다 소폭 높아 일반화가 유지됐습니다.
-6. Stage 6에서 `Subject + Body` 입력이 가장 큰 개선을 만들었습니다. Subject+Body LinearSVC는 OOF Macro F1 0.8999, `talk.religion.misc` F1 0.7818을 기록했습니다.
-7. Global ModernBERT는 Macro F1 0.8876으로 강했지만 Subject+Body LinearSVC보다 낮았습니다.
-8. Hierarchical multi-prototype와 sparse-semantic fusion은 `talk.religion.misc` Recall을 0.78 수준까지 높였지만 전체 Macro F1에서는 단순 Subject+Body LinearSVC를 넘지 못했습니다.
+5. Stage 6에서 `Subject + Body` 입력이 가장 큰 개선을 만들었습니다.
+6. Global ModernBERT는 Macro F1 0.8876으로 강했지만 Subject+Body LinearSVC보다 낮았습니다.
+7. Hierarchical multi-prototype와 sparse-semantic fusion은 `talk.religion.misc` Recall을 높였지만 전체 Macro F1에서는 우승 모델을 넘지 못했습니다.
+8. 최종 official test에서 Accuracy 0.9066, Macro F1 0.9046, `talk.religion.misc` F1 0.8488을 기록했습니다.
 
-## Stage 6 model comparison
+## Stage 6 OOF model comparison
 
 | Model | Accuracy | Macro F1 | misc Precision | misc Recall | misc F1 |
 |---|---:|---:|---:|---:|---:|
@@ -69,9 +81,14 @@ requirements.txt
 | Body-only LinearSVC | 0.7643 | 0.7559 | 0.5659 | 0.3539 | 0.4355 |
 | Frozen ModernBERT + LinearSVC | 0.7254 | 0.6992 | 0.6400 | 0.0599 | 0.1096 |
 
+## Execution links
+
+- Stage 6 full Kaggle run: https://www.kaggle.com/code/chattybeak/mission-10-stage-6/notebook
+- Stage 6 official test Colab: https://colab.research.google.com/drive/1Igk8Bjw43qUYsRXVitCR6Yv0BcSAFyd7
+
 ## Reproducibility and logs
 
 - 평가 가능한 notebook을 위해 **최종 metric, fold별 결과, 핵심 warning과 runtime 기록은 유지**합니다.
-- 반대로 수천 줄의 반복 `tqdm` 출력, debugger warning 반복, model download progress는 가독성을 위해 축약할 수 있습니다.
+- 수천 줄의 반복 `tqdm` 출력, debugger warning 반복, model download progress는 가독성을 위해 축약할 수 있습니다.
 - model weights, embeddings, OOF arrays는 용량 때문에 저장소에 포함하지 않습니다.
-- Stage 6 Kaggle run: https://www.kaggle.com/code/chattybeak/mission-10-stage-6/notebook
+- Official test 결과를 확인한 뒤 같은 holdout을 이용해 추가 tuning하지 않았습니다.
