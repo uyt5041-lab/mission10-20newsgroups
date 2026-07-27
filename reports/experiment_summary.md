@@ -155,7 +155,7 @@ Stage 6에서는 다음 모델을 같은 16,019개 OOF 문서에서 비교했다
 - Contrastive loss
 - Sparse-semantic score fusion
 
-### 결과
+### OOF 결과
 
 | Model | Accuracy | Macro F1 | misc Precision | misc Recall | misc F1 |
 |---|---:|---:|---:|---:|---:|
@@ -184,7 +184,21 @@ Sparse-semantic fusion은 `talk.religion.misc` Recall 0.7865로 가장 높았다
 
 Religion-specific inductive bias는 목표 class Recall 개선에는 기여했지만, 최종 objective인 20-class Macro F1에서는 단순한 Subject+Body LinearSVC가 가장 강하고 안정적이었다.
 
-## 10. 최종 결론
+## 10. Stage 6 official test
+
+OOF에서 선택된 Subject+Body LinearSVC 설정을 고정한 뒤, 2,827개 official holdout 문서에 한 번만 평가했다.
+
+| Metric | OOF | Official test |
+|---|---:|---:|
+| Accuracy | 0.9031 | **0.9066** |
+| Macro F1 | 0.8999 | **0.9046** |
+| `talk.religion.misc` Precision | 0.8487 | **0.9359** |
+| `talk.religion.misc` Recall | 0.7247 | **0.7766** |
+| `talk.religion.misc` F1 | 0.7818 | **0.8488** |
+
+Official test 성능은 OOF보다 소폭 높았다. 특히 `talk.religion.misc`는 precision과 recall이 모두 상승해 F1 0.8488을 기록했다. Test 결과 확인 후 같은 holdout을 이용한 추가 tuning은 수행하지 않았다.
+
+## 11. 최종 결론
 
 Stage 1부터 Stage 6까지의 흐름은 다음과 같다.
 
@@ -196,12 +210,21 @@ Neural baseline 구축
 → nested specialist 기각
 → Subject metadata 복원
 → ModernBERT와 hierarchical model 비교
+→ official test 1회 평가
 ```
 
-최종 OOF 기준 우승 모델은 **Subject+Body LinearSVC**다.
+최종 모델은 **Subject+Body LinearSVC**다.
 
-- Accuracy: 0.9031
-- Macro F1: 0.8999
-- `talk.religion.misc` F1: 0.7818
+- OOF Accuracy: 0.9031
+- OOF Macro F1: 0.8999
+- Official test Accuracy: 0.9066
+- Official test Macro F1: 0.9046
+- Official test `talk.religion.misc` F1: 0.8488
 
 이 결과는 20 Newsgroups에서 강한 pretrained Transformer보다도, 올바른 입력 정보와 적합한 sparse representation이 더 중요한 경우가 있음을 보여준다.
+
+## Execution links
+
+- GitHub repository: https://github.com/uyt5041-lab/mission10-20newsgroups
+- Stage 6 Kaggle run: https://www.kaggle.com/code/chattybeak/mission-10-stage-6/notebook
+- Stage 6 official test Colab: https://colab.research.google.com/drive/1Igk8Bjw43qUYsRXVitCR6Yv0BcSAFyd7
