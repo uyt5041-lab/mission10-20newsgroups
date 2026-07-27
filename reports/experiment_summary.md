@@ -121,7 +121,7 @@ TF-IDF가 neural model과 ensemble을 모두 앞섰다. 이 데이터에서는 t
 
 Specialist는 global model보다 좋아지지 않았다. 추가 복잡성이 일반화 이득으로 이어지지 않아 채택하지 않았다.
 
-## 8. Official test
+## 8. Stage 5 official test
 
 최종 Stage 5 global LinearSVC를 고정한 뒤 official test를 한 번 평가했다.
 
@@ -133,11 +133,75 @@ Specialist는 global model보다 좋아지지 않았다. 추가 복잡성이 일
 
 OOF보다 test 성능이 소폭 높아 과도한 CV overfitting 징후는 없었다.
 
-## 9. 남은 병목
+## 9. Stage 6: Subject metadata와 semantic hierarchy
 
-- `talk.religion.misc` Recall 부족
-- `soc.religion.christian`, `alt.atheism`, `talk.religion.misc` 간 의미 중첩
-- `rec.autos`의 과다 예측
-- Subject metadata 부재 시 성능 저하
+### 새로 정의한 문제
 
-이 분석이 Stage 6의 Subject+Body, ModernBERT, hierarchical religion head, multi-prototype misc, contrastive loss 실험으로 이어졌다.
+Stage 5 이후 가장 큰 병목은 두 갈래였다.
+
+1. Body-only text에서는 문서 주제를 직접 요약하는 `Subject` 정보가 사라져 있었다.
+2. Religion 내부 class는 lexical overlap이 강해 단일 global decision boundary만으로 구분하기 어려웠다.
+
+### 해결 접근
+
+Stage 6에서는 다음 모델을 같은 16,019개 OOF 문서에서 비교했다.
+
+- Body-only LinearSVC
+- Subject+Body LinearSVC
+- Frozen ModernBERT embedding + LinearSVC
+- Global ModernBERT full fine-tuning
+- Hierarchical religion head
+- Multi-prototype `talk.religion.misc`
+- Contrastive loss
+- Sparse-semantic score fusion
+
+### 결과
+
+| Model | Accuracy | Macro F1 | misc Precision | misc Recall | misc F1 |
+|---|---:|---:|---:|---:|---:|
+| Subject+Body LinearSVC | 0.9031 | **0.8999** | 0.8487 | 0.7247 | **0.7818** |
+| Global ModernBERT | 0.8908 | 0.8876 | 0.7237 | 0.7603 | 0.7416 |
+| Sparse-semantic fusion | 0.8659 | 0.8633 | 0.7204 | **0.7865** | 0.7520 |
+| Hierarchical multi-prototype | 0.8614 | 0.8588 | 0.7158 | 0.7828 | 0.7478 |
+| Body-only LinearSVC | 0.7643 | 0.7559 | 0.5659 | 0.3539 | 0.4355 |
+| Frozen ModernBERT + LinearSVC | 0.7254 | 0.6992 | 0.6400 | 0.0599 | 0.1096 |
+
+### 해석
+
+#### 1. 가장 큰 개선은 model architecture가 아니라 input restoration
+
+Body-only LinearSVC의 Macro F1은 0.7559였지만, Subject를 복원하자 0.8999로 상승했다. 따라서 이전 단계의 핵심 병목은 semantic capacity 부족만이 아니라 중요한 metadata 제거였다.
+
+#### 2. Full fine-tuning은 frozen embedding보다 크게 우수
+
+Frozen ModernBERT + LinearSVC는 Macro F1 0.6992에 그쳤지만, end-to-end fine-tuning한 Global ModernBERT는 0.8876을 기록했다. Pretrained representation을 고정해 쓰는 것과 task-specific fine-tuning은 전혀 다른 결과를 냈다.
+
+#### 3. Hierarchy와 fusion은 recall을 높였지만 전체 균형을 잃음
+
+Sparse-semantic fusion은 `talk.religion.misc` Recall 0.7865로 가장 높았다. Hierarchical multi-prototype도 0.7828을 기록했다. 그러나 precision 하락과 다른 class의 성능 손실로 전체 Macro F1은 Subject+Body LinearSVC보다 낮았다.
+
+#### 4. 복잡한 구조가 항상 우승하지는 않음
+
+Religion-specific inductive bias는 목표 class Recall 개선에는 기여했지만, 최종 objective인 20-class Macro F1에서는 단순한 Subject+Body LinearSVC가 가장 강하고 안정적이었다.
+
+## 10. 최종 결론
+
+Stage 1부터 Stage 6까지의 흐름은 다음과 같다.
+
+```text
+Neural baseline 구축
+→ training 안정화
+→ noisy text와 truncation 점검
+→ sparse lexical signal 검증
+→ nested specialist 기각
+→ Subject metadata 복원
+→ ModernBERT와 hierarchical model 비교
+```
+
+최종 OOF 기준 우승 모델은 **Subject+Body LinearSVC**다.
+
+- Accuracy: 0.9031
+- Macro F1: 0.8999
+- `talk.religion.misc` F1: 0.7818
+
+이 결과는 20 Newsgroups에서 강한 pretrained Transformer보다도, 올바른 입력 정보와 적합한 sparse representation이 더 중요한 경우가 있음을 보여준다.
